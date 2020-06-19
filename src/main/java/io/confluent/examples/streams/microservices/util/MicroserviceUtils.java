@@ -17,6 +17,7 @@ import org.apache.kafka.streams.state.RocksDBConfigSetter;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.IO;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -27,8 +28,13 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 
-import java.nio.charset.Charset;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -52,24 +58,42 @@ public class MicroserviceUtils {
     Schemas.configureSerdesWithSchemaRegistryUrl(schemaRegistryUrl);
     return bootstrapServers;
   }
-
-  public static Properties baseStreamsConfig(final String bootstrapServers,
-                                             final String stateDir,
-                                             final String appId) {
-    return baseStreamsConfig(bootstrapServers, stateDir, appId, false);
-  }
-
-  public static Properties baseStreamsConfigEOS(final String bootstrapServers,
-                                                final String stateDir,
-                                                final String appId) {
-    return baseStreamsConfig(bootstrapServers, stateDir, appId, true);
+  public static Properties buildPropertiesFromConfigFile(final Optional<String> configFile) throws IOException {
+    if (!configFile.isPresent()) {
+      return new Properties();
+    } else {
+      if (!Files.exists(Paths.get(configFile.get()))) {
+        throw new IOException(configFile + " not found.");
+      }
+      final Properties properties = new Properties();
+      try (InputStream inputStream = new FileInputStream(configFile.get())) {
+        properties.load(inputStream);
+      }
+      return properties;
+    }
   }
 
   public static Properties baseStreamsConfig(final String bootstrapServers,
                                              final String stateDir,
                                              final String appId,
-                                             final boolean enableEOS) {
-    final Properties config = new Properties();
+                                             final Properties defaults) {
+    return baseStreamsConfig(bootstrapServers, stateDir, appId, false, defaults);
+  }
+
+  public static Properties baseStreamsConfigEOS(final String bootstrapServers,
+                                                final String stateDir,
+                                                final String appId,
+                                                final Properties defaults) {
+    return baseStreamsConfig(bootstrapServers, stateDir, appId, true, defaults);
+  }
+
+  public static Properties baseStreamsConfig(final String bootstrapServers,
+                                             final String stateDir,
+                                             final String appId,
+                                             final boolean enableEOS,
+                                             final Properties defaults) {
+
+    final Properties config = new Properties(defaults);
     // Workaround for a known issue with RocksDB in environments where you have only 1 cpu core.
     config.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, CustomRocksDBConfig.class);
     config.put(StreamsConfig.APPLICATION_ID_CONFIG, appId);
@@ -81,7 +105,6 @@ public class MicroserviceUtils {
     config.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 1); //commit as fast as possible
     config.put(StreamsConfig.consumerPrefix(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG), 30000);
     MonitoringInterceptorUtils.maybeConfigureInterceptorsStreams(config);
-
     return config;
   }
 

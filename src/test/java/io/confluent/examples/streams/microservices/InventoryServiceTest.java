@@ -65,7 +65,7 @@ public class InventoryServiceTest extends MicroserviceTestUtils {
     sendOrders(orders);
 
     //When
-    inventoryService.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    inventoryService.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
 
     //Then the final order for Jumpers should have been 'rejected' as it's out of stock
     expected = asList(

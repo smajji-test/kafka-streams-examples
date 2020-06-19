@@ -12,6 +12,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.Properties;
 
 import static io.confluent.examples.streams.avro.microservices.OrderState.CREATED;
 import static io.confluent.examples.streams.avro.microservices.Product.UNDERPANTS;
@@ -63,7 +64,7 @@ public class EmailServiceTest extends MicroserviceTestUtils {
     send(Topics.PAYMENTS, Collections.singleton(new KeyValue<>(payment.getId(), payment)));
 
     //When
-    emailService.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    emailService.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
 
     //Then
     TestUtils.waitForCondition(() -> complete, 60000L, "Email was never sent.");

@@ -17,6 +17,7 @@ import io.confluent.examples.streams.microservices.domain.Schemas;
 import io.confluent.examples.streams.microservices.domain.Schemas.Topics;
 import io.confluent.examples.streams.microservices.util.MicroserviceTestUtils;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.test.TestUtils;
@@ -62,7 +63,7 @@ public class ValidationsAggregatorServiceTest extends MicroserviceTestUtils {
     sendOrderValuations(ruleResults);
 
     //When
-    ordersService.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    ordersService.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
 
     //Then
     final List<KeyValue<String, Order>> finalOrders = MicroserviceTestUtils

@@ -25,6 +25,7 @@ import javax.ws.rs.core.Response;
 import java.net.HttpURLConnection;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Properties;
 
 import static io.confluent.examples.streams.avro.microservices.Order.newBuilder;
 import static io.confluent.examples.streams.microservices.domain.beans.OrderId.id;
@@ -69,7 +70,7 @@ public class OrdersServiceTest extends MicroserviceTestUtils {
 
     //Given a rest service
     rest = new OrdersService("localhost");
-    rest.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    rest.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
     final Paths paths = new Paths("localhost", rest.port());
 
     //When we POST an order
@@ -114,7 +115,7 @@ public class OrdersServiceTest extends MicroserviceTestUtils {
 
     //Given a rest service
     rest = new OrdersService("localhost");
-    rest.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    rest.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
     final Paths paths = new Paths("localhost", rest.port());
 
     //When we post an order
@@ -144,7 +145,7 @@ public class OrdersServiceTest extends MicroserviceTestUtils {
 
     //Start the rest interface
     rest = new OrdersService("localhost");
-    rest.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    rest.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
     final Paths paths = new Paths("localhost", rest.port());
 
     final Invocation.Builder builder = client
@@ -168,10 +169,10 @@ public class OrdersServiceTest extends MicroserviceTestUtils {
 
     //Given two rest servers on different ports
     rest = new OrdersService("localhost");
-    rest.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    rest.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
     final Paths paths1 = new Paths("localhost", rest.port());
     rest2 = new OrdersService("localhost");
-    rest2.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    rest2.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
     final Paths paths2 = new Paths("localhost", rest2.port());
 
     //And one order

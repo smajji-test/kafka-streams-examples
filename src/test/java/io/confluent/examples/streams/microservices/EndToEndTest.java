@@ -23,9 +23,12 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.GenericType;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
 
 import static io.confluent.examples.streams.avro.microservices.Product.JUMPERS;
 import static io.confluent.examples.streams.avro.microservices.Product.UNDERPANTS;
@@ -161,7 +164,7 @@ public class EndToEndTest extends MicroserviceTestUtils {
   }
 
   @Before
-  public void startEverythingElse() throws Exception {
+  public void startEverythingElse() throws Exception, IOException {
     if (!CLUSTER.isRunning()) {
       CLUSTER.start();
     }
@@ -182,10 +185,11 @@ public class EndToEndTest extends MicroserviceTestUtils {
     services.add(new ValidationsAggregatorService());
 
     tailAllTopicsToConsole(CLUSTER.bootstrapServers());
-    services.forEach(s -> s.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath()));
+    services.forEach(s ->
+            s.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties()));
 
     final OrdersService ordersService = new OrdersService(HOST, 0);
-    ordersService.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath());
+    ordersService.start(CLUSTER.bootstrapServers(), TestUtils.tempDirectory().getPath(), new Properties());
     path = new Paths("localhost", ordersService.port());
     services.add(ordersService);
   }

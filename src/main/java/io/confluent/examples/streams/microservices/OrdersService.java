@@ -1,7 +1,11 @@
 package io.confluent.examples.streams.microservices;
 
+import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.cli.*;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -57,11 +61,7 @@ import io.confluent.examples.streams.microservices.util.Paths;
 import static io.confluent.examples.streams.microservices.domain.Schemas.Topics.ORDERS;
 import static io.confluent.examples.streams.microservices.domain.beans.OrderBean.fromBean;
 import static io.confluent.examples.streams.microservices.domain.beans.OrderBean.toBean;
-import static io.confluent.examples.streams.microservices.util.MicroserviceUtils.addShutdownHookAndBlock;
-import static io.confluent.examples.streams.microservices.util.MicroserviceUtils.baseStreamsConfig;
-import static io.confluent.examples.streams.microservices.util.MicroserviceUtils.setTimeout;
-import static io.confluent.examples.streams.microservices.util.MicroserviceUtils.startJetty;
-import static io.confluent.examples.streams.microservices.util.MicroserviceUtils.startProducer;
+import static io.confluent.examples.streams.microservices.util.MicroserviceUtils.*;
 import static org.apache.kafka.streams.state.StreamsMetadata.NOT_AVAILABLE;
 
 /**
@@ -315,18 +315,21 @@ public class OrdersService implements Service {
 
   @SuppressWarnings("unchecked")
   @Override
-  public void start(final String bootstrapServers, final String stateDir) {
+  public void start(final String bootstrapServers,
+                    final String stateDir,
+                    final Properties defaults) {
     jettyServer = startJetty(port, this);
     port = jettyServer.getURI().getPort(); // update port, in case port was zero
     producer = startProducer(bootstrapServers, ORDERS);
-    streams = startKStreams(bootstrapServers);
+    streams = startKStreams(bootstrapServers, defaults);
     log.info("Started Service " + getClass().getSimpleName());
   }
 
-  private KafkaStreams startKStreams(final String bootstrapServers) {
+  private KafkaStreams startKStreams(final String bootstrapServers,
+                                     final Properties defaults) {
     final KafkaStreams streams = new KafkaStreams(
         createOrdersMaterializedView().build(),
-        config(bootstrapServers));
+        config(bootstrapServers, defaults));
     metadataService = new MetadataService(streams);
     streams.cleanUp(); //don't do this in prod as it clears your state stores
     final CountDownLatch startLatch = new CountDownLatch(1);
@@ -348,8 +351,12 @@ public class OrdersService implements Service {
     return streams;
   }
 
-  private Properties config(final String bootstrapServers) {
-    final Properties props = baseStreamsConfig(bootstrapServers, "/tmp/kafka-streams", SERVICE_APP_ID);
+  private Properties config(final String bootstrapServers, final Properties defaults) {
+    final Properties props = baseStreamsConfig(
+            bootstrapServers,
+            "/tmp/kafka-streams",
+            SERVICE_APP_ID,
+            defaults);
     props.put(StreamsConfig.APPLICATION_SERVER_CONFIG, host + ":" + port);
     return props;
   }
@@ -404,15 +411,42 @@ public class OrdersService implements Service {
   }
 
   public static void main(final String[] args) throws Exception {
+    final Options opts = new Options();
+    opts.addOption(Option.builder("b")
+            .longOpt("bootstrap-server").hasArg().desc("Kafka cluster bootstrap server string").build())
+        .addOption(Option.builder("s")
+            .longOpt("schema-registry").hasArg().desc("Schema Registry URL").build())
+        .addOption(Option.builder("h")
+            .longOpt("hostname").hasArg().desc("This services HTTP host name").build())
+        .addOption(Option.builder("p")
+            .longOpt("port").hasArg().desc("This services HTTP port").build())
+        .addOption(Option.builder("c")
+            .longOpt("config-file").hasArg().desc("Java properties file with configurations for Kafka Clients").build())
+        .addOption(Option.builder("d")
+            .longOpt("state-dir").hasArg().desc("The directory for state storage").build())
+        .addOption(Option.builder("h").longOpt("help").hasArg(false).desc("Show usage information").build());
 
-    final String bootstrapServers = args.length > 0 ? args[0] : "localhost:9092";
-    final String schemaRegistryUrl = args.length > 1 ? args[1] : "http://localhost:8081";
-    final String restHostname = args.length > 2 ? args[2] : "localhost";
-    final String restPort = args.length > 3 ? args[3] : null;
+    final CommandLine cl = new DefaultParser().parse(opts, args);
+    if (cl.hasOption("h")) {
+      final HelpFormatter formatter = new HelpFormatter();
+      formatter.printHelp("Order Service", opts);
+      return;
+    }
+
+    final String bootstrapServers = cl.getOptionValue("bootstrap-server", "localhost:9092");
+    final String schemaRegistryUrl = cl.getOptionValue("schema-registry", "http://localhost:8081");
+    final String restHostname = cl.getOptionValue("hostname", "localhost");
+    final int restPort = Integer.parseInt(cl.getOptionValue("port", "0"));
+    final Optional<String> configFile = Optional.ofNullable(cl.getOptionValue("config-file", null));
+    final String stateDir = cl.getOptionValue("state-dir", "/tmp/kafka-streams");
+
+    final Properties defaultProperties =
+            buildPropertiesFromConfigFile(Optional.ofNullable(cl.getOptionValue("config-file", null)));
 
     Schemas.configureSerdesWithSchemaRegistryUrl(schemaRegistryUrl);
-    final OrdersService service = new OrdersService(restHostname, restPort == null ? 0 : Integer.parseInt(restPort));
-    service.start(bootstrapServers, "/tmp/kafka-streams");
+
+    final OrdersService service = new OrdersService(restHostname, restPort);
+    service.start(bootstrapServers, stateDir, defaultProperties);
     addShutdownHookAndBlock(service);
   }
 }
