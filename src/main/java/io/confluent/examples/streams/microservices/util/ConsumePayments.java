@@ -51,6 +51,7 @@ public class ConsumePayments {
         props.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Topics.PAYMENTS.keySerde().deserializer().getClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Topics.PAYMENTS.valueSerde().deserializer().getClass());
+        MonitoringInterceptorUtils.maybeConfigureInterceptorsConsumer(props);
 
         try (final KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
             consumer.subscribe(Collections.singletonList("payments"));

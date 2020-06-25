@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import io.confluent.monitoring.clients.interceptor.MonitoringTimeBuckets;
 import org.apache.commons.cli.*;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -136,6 +137,7 @@ public class OrderDetailsService implements Service {
     producerConfig.put(ProducerConfig.RETRIES_CONFIG, String.valueOf(Integer.MAX_VALUE));
     producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
     producerConfig.put(ProducerConfig.CLIENT_ID_CONFIG, "order-details-service-producer");
+    MonitoringInterceptorUtils.maybeConfigureInterceptorsProducer(producerConfig);
 
     producer = new KafkaProducer<>(producerConfig,
         Topics.ORDER_VALIDATIONS.keySerde().serializer(),
@@ -150,6 +152,7 @@ public class OrderDetailsService implements Service {
     consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, !eosEnabled);
     consumerConfig.put(ConsumerConfig.CLIENT_ID_CONFIG, "order-details-service-consumer");
+    MonitoringInterceptorUtils.maybeConfigureInterceptorsConsumer(consumerConfig);
 
     consumer = new KafkaConsumer<>(consumerConfig,
         Topics.ORDERS.keySerde().deserializer(),

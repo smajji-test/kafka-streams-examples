@@ -35,6 +35,7 @@ public class AddInventory {
         producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
         producerConfig.put(ProducerConfig.RETRIES_CONFIG, 0);
         producerConfig.put(ProducerConfig.CLIENT_ID_CONFIG, "inventory-generator");
+        MonitoringInterceptorUtils.maybeConfigureInterceptorsProducer(producerConfig);
 
         final ProductTypeSerde productSerde = new ProductTypeSerde();
 

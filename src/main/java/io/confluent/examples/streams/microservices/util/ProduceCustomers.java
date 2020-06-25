@@ -54,6 +54,7 @@ public class ProduceCustomers {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 0);
+        MonitoringInterceptorUtils.maybeConfigureInterceptorsProducer(props);
 
         try (final KafkaProducer<Long, Customer> producer = new KafkaProducer<>(props, new LongSerializer(), mySerializer)) {
             while (true) {

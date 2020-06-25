@@ -59,6 +59,7 @@ public class PostOrdersAndPayments {
         producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
         producerConfig.put(ProducerConfig.RETRIES_CONFIG, 0);
         producerConfig.put(ProducerConfig.CLIENT_ID_CONFIG, "payment-generator");
+        MonitoringInterceptorUtils.maybeConfigureInterceptorsProducer(producerConfig);
 
         final KafkaProducer<String, Payment> paymentProducer =
                 new KafkaProducer<>(producerConfig, new StringSerializer(), paymentSerializer);

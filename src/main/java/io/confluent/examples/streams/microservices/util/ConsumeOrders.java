@@ -52,6 +52,7 @@ public class ConsumeOrders {
         props.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Topics.ORDERS.keySerde().deserializer().getClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Topics.ORDERS.valueSerde().deserializer().getClass());
+        MonitoringInterceptorUtils.maybeConfigureInterceptorsConsumer(props);
 
         try (final KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
             consumer.subscribe(Collections.singletonList("orders"));
