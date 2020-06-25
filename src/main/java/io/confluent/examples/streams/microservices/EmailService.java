@@ -11,12 +11,12 @@ import io.confluent.examples.streams.avro.microservices.Order;
 import io.confluent.examples.streams.avro.microservices.OrderEnriched;
 import io.confluent.examples.streams.avro.microservices.Payment;
 
+import io.confluent.examples.streams.microservices.domain.Schemas;
 import org.apache.commons.cli.*;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.Consumed;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -53,8 +53,8 @@ public class EmailService implements Service {
   @Override
   public void start(final String bootstrapServers,
                     final String stateDir,
-                    final Properties defaults) {
-    streams = processStreams(bootstrapServers, stateDir, defaults);
+                    final Properties defaultConfig) {
+    streams = processStreams(bootstrapServers, stateDir, defaultConfig);
     streams.cleanUp(); //don't do this in prod as it clears your state stores
     final CountDownLatch startLatch = new CountDownLatch(1);
     streams.setStateListener((newState, oldState) -> {
@@ -77,7 +77,7 @@ public class EmailService implements Service {
 
   private KafkaStreams processStreams(final String bootstrapServers,
                                       final String stateDir,
-                                      final Properties defaults) {
+                                      final Properties defaultConfig) {
 
     final StreamsBuilder builder = new StreamsBuilder();
 
@@ -114,7 +114,7 @@ public class EmailService implements Service {
         .to((orderId, orderEnriched, record) -> orderEnriched.getCustomerLevel(), Produced.with(ORDERS_ENRICHED.keySerde(), ORDERS_ENRICHED.valueSerde()));
 
     return new KafkaStreams(builder.build(),
-            baseStreamsConfig(bootstrapServers, stateDir, SERVICE_APP_ID, defaults));
+            baseStreamsConfig(bootstrapServers, stateDir, SERVICE_APP_ID, defaultConfig));
   }
 
   public static void main(final String[] args) throws Exception {
@@ -150,12 +150,15 @@ public class EmailService implements Service {
     }
     final EmailService service = new EmailService(new LoggingEmailer());
 
-    final Properties defaultProperties =
+    final Properties defaultConfig =
             buildPropertiesFromConfigFile(Optional.ofNullable(cl.getOptionValue("config-file", null)));
+
+    Schemas.configureSerdes(defaultConfig);
+
     service.start(
             cl.getOptionValue("bootstrap-server", "localhost:9092"),
             cl.getOptionValue("state-dir", "/tmp/kafka-streams-examples"),
-            defaultProperties);
+            defaultConfig);
     addShutdownHookAndBlock(service);
   }
 

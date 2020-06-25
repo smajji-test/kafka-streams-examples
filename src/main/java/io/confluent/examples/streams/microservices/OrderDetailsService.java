@@ -12,10 +12,9 @@ import io.confluent.examples.streams.avro.microservices.Order;
 import io.confluent.examples.streams.avro.microservices.OrderState;
 import io.confluent.examples.streams.avro.microservices.OrderValidation;
 import io.confluent.examples.streams.avro.microservices.OrderValidationResult;
-import io.confluent.examples.streams.microservices.util.MicroserviceUtils;
+import io.confluent.examples.streams.microservices.domain.Schemas;
 import io.confluent.examples.streams.utils.MonitoringInterceptorUtils;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -66,15 +65,15 @@ public class OrderDetailsService implements Service {
   @Override
   public void start(final String bootstrapServers,
                     final String stateDir,
-                    final Properties defaults) {
-    executorService.execute(() -> startService(bootstrapServers, defaults));
+                    final Properties defaultConfig) {
+    executorService.execute(() -> startService(bootstrapServers, defaultConfig));
     running = true;
     log.info("Started Service " + getClass().getSimpleName());
   }
 
-  private void startService(final String bootstrapServers, final Properties defaults) {
-    startConsumer(bootstrapServers, defaults);
-    startProducer(bootstrapServers, defaults);
+  private void startService(final String bootstrapServers, final Properties defaultConfig) {
+    startConsumer(bootstrapServers, defaultConfig);
+    startProducer(bootstrapServers, defaultConfig);
 
     try {
       final Map<TopicPartition, OffsetAndMetadata> consumedOffsets = new HashMap<>();
@@ -126,8 +125,9 @@ public class OrderDetailsService implements Service {
     );
   }
 
-  private void startProducer(final String bootstrapServers, final Properties defaults) {
+  private void startProducer(final String bootstrapServers, final Properties defaultConfig) {
     final Properties producerConfig = new Properties();
+    producerConfig.putAll(defaultConfig);
     producerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     if (eosEnabled) {
       producerConfig.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "OrderDetailsServiceInstance1");
@@ -136,21 +136,20 @@ public class OrderDetailsService implements Service {
     producerConfig.put(ProducerConfig.RETRIES_CONFIG, String.valueOf(Integer.MAX_VALUE));
     producerConfig.put(ProducerConfig.ACKS_CONFIG, "all");
     producerConfig.put(ProducerConfig.CLIENT_ID_CONFIG, "order-details-service-producer");
-    MonitoringInterceptorUtils.maybeConfigureInterceptorsProducer(producerConfig);
 
     producer = new KafkaProducer<>(producerConfig,
         Topics.ORDER_VALIDATIONS.keySerde().serializer(),
         Topics.ORDER_VALIDATIONS.valueSerde().serializer());
   }
 
-  private void startConsumer(final String bootstrapServers, final Properties defaults) {
-    final Properties consumerConfig = new Properties(defaults);
+  private void startConsumer(final String bootstrapServers, final Properties defaultConfig) {
+    final Properties consumerConfig = new Properties();
+    consumerConfig.putAll(defaultConfig);
     consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_ID);
     consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, !eosEnabled);
     consumerConfig.put(ConsumerConfig.CLIENT_ID_CONFIG, "order-details-service-consumer");
-    MonitoringInterceptorUtils.maybeConfigureInterceptorsConsumer(consumerConfig);
 
     consumer = new KafkaConsumer<>(consumerConfig,
         Topics.ORDERS.keySerde().deserializer(),
@@ -226,14 +225,16 @@ public class OrderDetailsService implements Service {
       formatter.printHelp("Order Details Service", opts);
       return;
     }
-    final Properties defaultProperties =
+    final Properties defaultConfig =
             buildPropertiesFromConfigFile(Optional.ofNullable(cl.getOptionValue("config-file", null)));
+
+    Schemas.configureSerdes(defaultConfig);
 
     final OrderDetailsService service = new OrderDetailsService();
     service.start(
             cl.getOptionValue("bootstrap-server", "localhost:9092"),
             cl.getOptionValue("state-dir", "/tmp/kafka-streams-examples"),
-            defaultProperties);
+            defaultConfig);
     addShutdownHookAndBlock(service);
   }
 }

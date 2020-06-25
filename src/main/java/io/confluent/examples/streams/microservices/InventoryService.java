@@ -1,11 +1,11 @@
 package io.confluent.examples.streams.microservices;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import io.confluent.examples.streams.microservices.domain.Schemas;
 import org.apache.commons.cli.*;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
@@ -59,8 +59,8 @@ public class InventoryService implements Service {
   @Override
   public void start(final String bootstrapServers,
                     final String stateDir,
-                    final Properties defaults) {
-    streams = processStreams(bootstrapServers, stateDir, defaults);
+                    final Properties defaultConfig) {
+    streams = processStreams(bootstrapServers, stateDir, defaultConfig);
     streams.cleanUp(); //don't do this in prod as it clears your state stores
     final CountDownLatch startLatch = new CountDownLatch(1);
     streams.setStateListener((newState, oldState) -> {
@@ -90,7 +90,7 @@ public class InventoryService implements Service {
 
   private KafkaStreams processStreams(final String bootstrapServers,
                                       final String stateDir,
-                                      final Properties defaults) {
+                                      final Properties defaultConfig) {
 
     //Latch onto instances of the orders and inventory topics
     final StreamsBuilder builder = new StreamsBuilder();
@@ -98,8 +98,8 @@ public class InventoryService implements Service {
       .stream(Topics.ORDERS.name(),
         Consumed.with(Topics.ORDERS.keySerde(), Topics.ORDERS.valueSerde()));
     final KTable<Product, Integer> warehouseInventory = builder
-      .table(Topics.WAREHOUSE_INVENTORY.name(), Consumed
-        .with(Topics.WAREHOUSE_INVENTORY.keySerde(), Topics.WAREHOUSE_INVENTORY.valueSerde()));
+      .table(Topics.WAREHOUSE_INVENTORY.name(),
+        Consumed.with(Topics.WAREHOUSE_INVENTORY.keySerde(), Topics.WAREHOUSE_INVENTORY.valueSerde()));
 
     //Create a store to reserve inventory whilst the order is processed.
     //This will be prepopulated from Kafka before the service starts processing
@@ -123,7 +123,7 @@ public class InventoryService implements Service {
         Topics.ORDER_VALIDATIONS.valueSerde()));
 
     return new KafkaStreams(builder.build(),
-      MicroserviceUtils.baseStreamsConfig(bootstrapServers, stateDir, SERVICE_APP_ID, defaults));
+      MicroserviceUtils.baseStreamsConfig(bootstrapServers, stateDir, SERVICE_APP_ID, defaultConfig));
   }
 
   private static class InventoryValidator implements
@@ -202,14 +202,16 @@ public class InventoryService implements Service {
       return;
     }
 
-    final Properties defaultProperties =
+    final Properties defaultConfig =
             buildPropertiesFromConfigFile(Optional.ofNullable(cl.getOptionValue("config-file", null)));
+
+    Schemas.configureSerdes(defaultConfig);
 
     final InventoryService service = new InventoryService();
     service.start(
             cl.getOptionValue("bootstrap-server", "localhost:9092"),
             cl.getOptionValue("state-dir", "/tmp/kafka-streams-examples"),
-            defaultProperties);
+            defaultConfig);
     addShutdownHookAndBlock(service);
   }
 }

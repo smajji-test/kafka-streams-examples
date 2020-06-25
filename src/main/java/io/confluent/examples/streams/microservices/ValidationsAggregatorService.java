@@ -11,6 +11,7 @@ import static io.confluent.examples.streams.microservices.util.MicroserviceUtils
 import io.confluent.examples.streams.avro.microservices.Order;
 import io.confluent.examples.streams.avro.microservices.OrderState;
 import io.confluent.examples.streams.avro.microservices.OrderValidation;
+import io.confluent.examples.streams.microservices.domain.Schemas;
 import org.apache.commons.cli.*;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
@@ -26,7 +27,6 @@ import org.apache.kafka.streams.kstream.StreamJoined;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.Properties;
@@ -63,9 +63,9 @@ public class ValidationsAggregatorService implements Service {
   @Override
   public void start(final String bootstrapServers,
                     final String stateDir,
-                    final Properties defaults) {
+                    final Properties defaultConfig) {
     final CountDownLatch startLatch = new CountDownLatch(1);
-    streams = aggregateOrderValidations(bootstrapServers, stateDir, defaults);
+    streams = aggregateOrderValidations(bootstrapServers, stateDir, defaultConfig);
     streams.cleanUp(); //don't do this in prod as it clears your state stores
 
     streams.setStateListener((newState, oldState) -> {
@@ -90,7 +90,7 @@ public class ValidationsAggregatorService implements Service {
   private KafkaStreams aggregateOrderValidations(
       final String bootstrapServers,
       final String stateDir,
-      final Properties defaults) {
+      final Properties defaultConfig) {
     final int numberOfRules = 3; //TODO put into a KTable to make dynamically configurable
 
     final StreamsBuilder builder = new StreamsBuilder();
@@ -137,7 +137,7 @@ public class ValidationsAggregatorService implements Service {
         .toStream().to(ORDERS.name(), Produced.with(ORDERS.keySerde(), ORDERS.valueSerde()));
 
     return new KafkaStreams(builder.build(),
-        baseStreamsConfig(bootstrapServers, stateDir, SERVICE_APP_ID, defaults));
+        baseStreamsConfig(bootstrapServers, stateDir, SERVICE_APP_ID, defaultConfig));
   }
 
   @Override
@@ -178,14 +178,17 @@ public class ValidationsAggregatorService implements Service {
       formatter.printHelp("Validator Aggregator Service", opts);
       return;
     }
-    final Properties defaultProperties =
+    final Properties defaultConfig =
             buildPropertiesFromConfigFile(Optional.ofNullable(cl.getOptionValue("config-file", null)));
 
+    Schemas.configureSerdes(defaultConfig);
+
     final ValidationsAggregatorService service = new ValidationsAggregatorService();
+
     service.start(
             cl.getOptionValue("bootstrap-server", "localhost:9092"),
             cl.getOptionValue("state-dir", "/tmp/kafka-streams-examples"),
-            defaultProperties);
+            defaultConfig);
     addShutdownHookAndBlock(service);
   }
 }

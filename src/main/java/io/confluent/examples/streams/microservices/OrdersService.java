@@ -1,6 +1,5 @@
 package io.confluent.examples.streams.microservices;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -20,7 +19,6 @@ import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Predicate;
 import org.apache.kafka.streams.state.QueryableStoreTypes;
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
-import org.apache.kafka.streams.StreamsConfig;
 
 import org.eclipse.jetty.server.Server;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -317,19 +315,20 @@ public class OrdersService implements Service {
   @Override
   public void start(final String bootstrapServers,
                     final String stateDir,
-                    final Properties defaults) {
+                    final Properties defaultConfig) {
     jettyServer = startJetty(port, this);
     port = jettyServer.getURI().getPort(); // update port, in case port was zero
-    producer = startProducer(bootstrapServers, ORDERS);
-    streams = startKStreams(bootstrapServers, defaults);
+    producer = startProducer(bootstrapServers, ORDERS, defaultConfig);
+    streams = startKStreams(bootstrapServers, defaultConfig);
     log.info("Started Service " + getClass().getSimpleName());
+    log.info("Order Service listening at:" + jettyServer.getURI().toString());
   }
 
   private KafkaStreams startKStreams(final String bootstrapServers,
-                                     final Properties defaults) {
+                                     final Properties defaultConfig) {
     final KafkaStreams streams = new KafkaStreams(
         createOrdersMaterializedView().build(),
-        config(bootstrapServers, defaults));
+        config(bootstrapServers, defaultConfig));
     metadataService = new MetadataService(streams);
     streams.cleanUp(); //don't do this in prod as it clears your state stores
     final CountDownLatch startLatch = new CountDownLatch(1);
@@ -351,12 +350,12 @@ public class OrdersService implements Service {
     return streams;
   }
 
-  private Properties config(final String bootstrapServers, final Properties defaults) {
+  private Properties config(final String bootstrapServers, final Properties defaultConfig) {
     final Properties props = baseStreamsConfig(
             bootstrapServers,
             "/tmp/kafka-streams",
             SERVICE_APP_ID,
-            defaults);
+            defaultConfig);
     props.put(StreamsConfig.APPLICATION_SERVER_CONFIG, host + ":" + port);
     return props;
   }
@@ -436,17 +435,17 @@ public class OrdersService implements Service {
     final String bootstrapServers = cl.getOptionValue("bootstrap-server", "localhost:9092");
     final String schemaRegistryUrl = cl.getOptionValue("schema-registry", "http://localhost:8081");
     final String restHostname = cl.getOptionValue("hostname", "localhost");
-    final int restPort = Integer.parseInt(cl.getOptionValue("port", "0"));
+    final int restPort = Integer.parseInt(cl.getOptionValue("port", "5432"));
     final Optional<String> configFile = Optional.ofNullable(cl.getOptionValue("config-file", null));
     final String stateDir = cl.getOptionValue("state-dir", "/tmp/kafka-streams");
 
-    final Properties defaultProperties =
+    final Properties defaultConfig =
             buildPropertiesFromConfigFile(Optional.ofNullable(cl.getOptionValue("config-file", null)));
 
-    Schemas.configureSerdesWithSchemaRegistryUrl(schemaRegistryUrl);
+    Schemas.configureSerdes(defaultConfig);
 
     final OrdersService service = new OrdersService(restHostname, restPort);
-    service.start(bootstrapServers, stateDir, defaultProperties);
+    service.start(bootstrapServers, stateDir, defaultConfig);
     addShutdownHookAndBlock(service);
   }
 }

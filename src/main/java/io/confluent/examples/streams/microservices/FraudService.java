@@ -6,7 +6,6 @@ import io.confluent.examples.streams.avro.microservices.OrderValidation;
 import io.confluent.examples.streams.avro.microservices.OrderValue;
 import io.confluent.examples.streams.microservices.domain.Schemas;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -57,8 +56,8 @@ public class FraudService implements Service {
   @Override
   public void start(final String bootstrapServers,
                     final String stateDir,
-                    final Properties defaults) {
-    streams = processStreams(bootstrapServers, stateDir, defaults);
+                    final Properties defaultConfig) {
+    streams = processStreams(bootstrapServers, stateDir, defaultConfig);
     streams.cleanUp(); //don't do this in prod as it clears your state stores
     final CountDownLatch startLatch = new CountDownLatch(1);
     streams.setStateListener((newState, oldState) -> {
@@ -82,7 +81,7 @@ public class FraudService implements Service {
 
   private KafkaStreams processStreams(final String bootstrapServers,
                                       final String stateDir,
-                                      final Properties defaults) {
+                                      final Properties defaultConfig) {
 
     //Latch onto instances of the orders and inventory topics
     final StreamsBuilder builder = new StreamsBuilder();
@@ -128,7 +127,7 @@ public class FraudService implements Service {
     //as caching in Kafka Streams will conflate subsequent updates for the same key. Disabling caching ensures
     //we get a complete "changelog" from the aggregate(...) step above (i.e. every input event will have a
     //corresponding output event.
-    final Properties props = baseStreamsConfig(bootstrapServers, stateDir, SERVICE_APP_ID, defaults);
+    final Properties props = baseStreamsConfig(bootstrapServers, stateDir, SERVICE_APP_ID, defaultConfig);
     props.setProperty(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, "0");
 
     return new KafkaStreams(builder.build(), props);
@@ -171,13 +170,15 @@ public class FraudService implements Service {
       return;
     }
     final FraudService service = new FraudService();
-    final Properties defaultProperties =
+    final Properties defaultConfig =
             buildPropertiesFromConfigFile(Optional.ofNullable(cl.getOptionValue("config-file", null)));
+
+    Schemas.configureSerdes(defaultConfig);
 
     service.start(
             cl.getOptionValue("bootstrap-server", "localhost:9092"),
             cl.getOptionValue("state-dir", "/tmp/kafka-streams-examples"),
-            defaultProperties);
+            defaultConfig);
     addShutdownHookAndBlock(service);
   }
 

@@ -29,7 +29,9 @@ import java.util.Properties;
 
 import static io.confluent.examples.streams.avro.microservices.Order.newBuilder;
 import static io.confluent.examples.streams.microservices.domain.beans.OrderId.id;
+import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
+import static org.assertj.core.api.AssertionsForClassTypes.within;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.Assert.fail;
 
@@ -40,7 +42,9 @@ public class OrdersServiceTest extends MicroserviceTestUtils {
 
   @BeforeClass
   public static void startKafkaCluster() {
-    Schemas.configureSerdesWithSchemaRegistryUrl(CLUSTER.schemaRegistryUrl());
+    final Properties config = new Properties();
+    config.put(SCHEMA_REGISTRY_URL_CONFIG, CLUSTER.schemaRegistryUrl());
+    Schemas.configureSerdes(config);
   }
 
   @After
@@ -59,7 +63,11 @@ public class OrdersServiceTest extends MicroserviceTestUtils {
   public void prepareKafkaCluster() throws Exception {
     CLUSTER.deleteTopicsAndWait(60000, Topics.ORDERS.name(), "OrdersService-orders-store-changelog");
     CLUSTER.createTopic(Topics.ORDERS.name());
-    Schemas.configureSerdesWithSchemaRegistryUrl(CLUSTER.schemaRegistryUrl());
+
+    final Properties config = new Properties();
+    config.put(SCHEMA_REGISTRY_URL_CONFIG, CLUSTER.schemaRegistryUrl());
+
+    Schemas.configureSerdes(config);
   }
 
   @Test

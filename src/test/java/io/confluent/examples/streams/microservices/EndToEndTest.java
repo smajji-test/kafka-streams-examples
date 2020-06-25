@@ -27,12 +27,12 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 
 import static io.confluent.examples.streams.avro.microservices.Product.JUMPERS;
 import static io.confluent.examples.streams.avro.microservices.Product.UNDERPANTS;
 import static io.confluent.examples.streams.microservices.domain.beans.OrderId.id;
+import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -177,7 +177,9 @@ public class EndToEndTest extends MicroserviceTestUtils {
       }
     });
 
-    Schemas.configureSerdesWithSchemaRegistryUrl(CLUSTER.schemaRegistryUrl());
+    final Properties config = new Properties();
+    config.put(SCHEMA_REGISTRY_URL_CONFIG, CLUSTER.schemaRegistryUrl());
+    Schemas.configureSerdes(config);
 
     services.add(new FraudService());
     services.add(new InventoryService());
