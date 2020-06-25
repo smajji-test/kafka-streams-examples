@@ -2,7 +2,6 @@ package io.confluent.examples.streams.microservices.util;
 
 import io.confluent.examples.streams.microservices.domain.Schemas.Topics;
 import io.confluent.examples.streams.utils.MonitoringInterceptorUtils;
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
