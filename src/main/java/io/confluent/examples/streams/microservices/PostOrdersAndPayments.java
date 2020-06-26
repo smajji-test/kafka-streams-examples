@@ -38,20 +38,13 @@ public class PostOrdersAndPayments {
         };
     }
 
-    private static void sendPayment(final String id,
-                                    final Payment payment,
-                                    final String bootstrapServers,
-                                    final String schemaRegistryUrl,
-                                    final Properties defaultConfig) {
-
-        //System.out.printf("-----> id: %s, payment: %s%n", id, payment);
-
+    private static KafkaProducer<String, Payment> buildPaymentProducer(final String bootstrapServers,
+                                                                       final Properties defaultConfig) {
         final SpecificAvroSerializer<Payment> paymentSerializer = new SpecificAvroSerializer<>();
-        final boolean isKeySerde = false;
 
         paymentSerializer.configure(
-            Schemas.buildSchemaRegistryConfigMap(defaultConfig),
-            isKeySerde);
+                Schemas.buildSchemaRegistryConfigMap(defaultConfig),
+                false);
 
         final Properties producerConfig = new Properties();
         producerConfig.putAll(defaultConfig);
@@ -61,15 +54,16 @@ public class PostOrdersAndPayments {
         producerConfig.put(ProducerConfig.CLIENT_ID_CONFIG, "payment-generator");
         MonitoringInterceptorUtils.maybeConfigureInterceptorsProducer(producerConfig);
 
-        final KafkaProducer<String, Payment> paymentProducer =
-                new KafkaProducer<>(producerConfig, new StringSerializer(), paymentSerializer);
-
+        return new KafkaProducer<>(producerConfig, new StringSerializer(), paymentSerializer);
+    }
+    private static void sendPayment(final String id,
+                                    final Payment payment,
+                                    final KafkaProducer<String, Payment> paymentProducer) {
         final ProducerRecord<String, Payment> record = new ProducerRecord<>("payments", id, payment);
         paymentProducer.send(record);
-        paymentProducer.close();
     }
 
-    @SuppressWarnings("InfiniteLoopStatement")
+
     public static void main(final String[] args) throws Exception {
 
         final int NUM_CUSTOMERS = 6;
@@ -118,9 +112,11 @@ public class PostOrdersAndPayments {
                     .property(ClientProperties.READ_TIMEOUT, 60000);
         final Client client = ClientBuilder.newClient(clientConfig);
 
+        final KafkaProducer<String, Payment> paymentProducer = buildPaymentProducer(bootstrapServers, defaultConfig);
+
         // send one order every 1 second
         int i = startingOrderId;
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
 
             final int randomCustomerId = randomGenerator.nextInt(NUM_CUSTOMERS);
             final Product randomProduct = productTypeList.get(randomGenerator.nextInt(productTypeList.size()));
@@ -146,7 +142,6 @@ public class PostOrdersAndPayments {
                                   .queryParam("timeout", Duration.ofMinutes(1).toMillis() / 2)
                                   .request(APPLICATION_JSON_TYPE)
                                   .get(newBean());
-
             if (!inputOrder.equals(returnedOrder)) {
                 System.out.printf("Posted order %d does not equal returned order: %s%n", i, returnedOrder.toString());
             } else {
@@ -155,11 +150,14 @@ public class PostOrdersAndPayments {
 
             // Send payment
             final Payment payment = new Payment("Payment:1234", id(i), "CZK", 1000.00d);
-            sendPayment(payment.getId(), payment, bootstrapServers, schemaRegistryUrl, defaultConfig);
+            sendPayment(payment.getId(), payment, paymentProducer);
 
             Thread.sleep(5000L);
             i++;
         }
+
+        paymentProducer.flush();
+        paymentProducer.close();
     }
 
 }
