@@ -1,4 +1,6 @@
 # Kafka Streams Examples
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fsmajji-test%2Fkafka-streams-examples.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fsmajji-test%2Fkafka-streams-examples?ref=badge_shield)
+
 
 This project contains code examples that demonstrate how to implement real-time applications and event-driven
 microservices using the Streams API of [Apache Kafka](http://kafka.apache.org/) aka Kafka Streams.
@@ -411,3 +413,7 @@ make it compile.  Check this README as well as [pom.xml](pom.xml) for any such i
     * For general questions about Apache Kafka and Confluent Platform, please head over to the
       [Confluent mailing list](https://groups.google.com/forum/?pli=1#!forum/confluent-platform)
       or to the [Apache Kafka mailing lists](http://kafka.apache.org/contact).
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fsmajji-test%2Fkafka-streams-examples.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fsmajji-test%2Fkafka-streams-examples?ref=badge_large)
